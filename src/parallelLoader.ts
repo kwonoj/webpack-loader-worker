@@ -3,7 +3,7 @@ import * as loaderUtils from 'loader-utils';
 import { workerAdapter } from './adapters/jestWorkerAdapter';
 import * as debug from 'debug';
 
-const loader = debug('parallelLoader');
+const loader = debug('parallelLoader:pitch');
 
 /**
  * naive detection if node.js allowed to use worker_threads
@@ -46,28 +46,32 @@ async function parallelLoader(this: loader.LoaderContext) {
       }),
       resource: this.resourcePath + (this.resourceQuery || ''),
       sourceMap: this.sourceMap,
-      emitError: this.emitError,
-      emitWarning: this.emitWarning,
-      resolve: this.resolve,
       target: this.target,
       minimize: this.minimize,
       resourceQuery: this.resourceQuery,
       optionsContext: this.rootContext ?? (this as any).options?.context
     };
 
-    loader(`Initializing context for loader runner %O`, context);
+    loader(`Created context for loader runner %O`, context);
 
-    const workerResult = await worker.run(context);
+    const workerResult = await worker.run(context, {
+      emitError: this.emitError,
+      emitWarning: this.emitWarning,
+      resolve: this.resolve
+    });
+
     if (!workerResult) {
-      loaderAsyncCallback(new Error('unexpected empty results'));
       return;
     }
 
     const { fileDependencies, contextDependencies, result } = workerResult;
+    loader(`Worker returned result %O`, result);
+
     (fileDependencies ?? []).forEach((fileDep: string) => this.addDependency(fileDep));
     (contextDependencies ?? []).forEach((contextDep: string) => this.addContextDependency(contextDep));
 
-    loaderAsyncCallback(result);
+    loader(`Returning compiled result back to webpack`);
+    loaderAsyncCallback(null, ...result);
   } catch (err) {
     loaderAsyncCallback(err);
   }
