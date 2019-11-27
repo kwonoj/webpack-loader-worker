@@ -3,9 +3,6 @@
   "version": "0.0.1",
   "description": "Execute webpack loader in parallel",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kwonoj/parallel-loader.git"
@@ -23,14 +20,37 @@
     "url": "https://github.com/kwonoj/parallel-loader/issues"
   },
   "homepage": "https://github.com/kwonoj/parallel-loader#readme",
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -e",
+      "pre-commit": "lint-staged",
+      "pre-push": "npm-run-all lint:* prepare test:unit"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "prettier --write --single-quote --print-width 120 --jsx-bracket-same-line true",
+      "git add"
+    ]
+  },
+  "scripts": {
+    "prepare": "echo",
+    "test:unit": "echo",
+    "lint:code": "echo",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
+  },
   "devDependencies": {
+    "@commitlint/cli": "^8.2.0",
+    "@commitlint/config-conventional": "^8.2.0",
     "@types/debug": "^4.1.5",
     "@types/loader-runner": "^2.2.3",
     "@types/loader-utils": "^1.1.3",
     "@types/webpack": "^4.41.0",
+    "conventional-changelog": "^3.1.15",
     "husky": "^3.1.0",
     "jest": "^24.9.0",
     "lint-staged": "^9.5.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "^1.19.1",
     "ts-node": "^8.5.2",
     "typescript": "^3.7.2",
