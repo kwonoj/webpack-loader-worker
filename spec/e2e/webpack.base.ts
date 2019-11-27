@@ -6,7 +6,7 @@ const threadLoader = require.resolve('../../dist/cjs/parallelLoader');
 const threadLoaderConfig = {
   loader: threadLoader,
   options: {
-    debugEnabled: true
+    loglevel: 'verbose'
   }
 };
 

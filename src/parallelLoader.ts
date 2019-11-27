@@ -1,7 +1,8 @@
 import { loader } from 'webpack';
 import * as loaderUtils from 'loader-utils';
-import { workerAdapter } from './adapters/jestWorkerAdapter';
 import * as debug from 'debug';
+import { createPool } from './threadPool';
+const nanoid: typeof import('nanoid') = require('nanoid');
 
 const loader = debug('parallelLoader:pitch');
 
@@ -21,18 +22,21 @@ const isWorkerEnabled = () => {
  * Entrypoint to parall-loader initializes thread pool & execute loaders.
  */
 async function parallelLoader(this: loader.LoaderContext) {
-  const { maxWorkers, debugEnabled } = loaderUtils.getOptions(this);
-  if (debugEnabled) {
+  const loaderId = nanoid();
+
+  const { maxWorkers, loglevel } = loaderUtils.getOptions(this);
+  if (loglevel === 'verbose') {
     debug.enable('parallelLoader*');
   }
 
-  loader('Initializing parallelLoader');
+  loader('Initializing parallelLoader: %s', loaderId);
   if (!isWorkerEnabled()) {
     throw new Error('Cannot initialize loader, ensure worker_threads is enabled');
   }
 
   loader(`Creating worker pool with ${maxWorkers} maximum workers`);
-  const worker = workerAdapter({ maxWorkers });
+
+  const pool = createPool();
   const loaderAsyncCallback = this.async()!;
 
   try {
@@ -49,18 +53,22 @@ async function parallelLoader(this: loader.LoaderContext) {
       target: this.target,
       minimize: this.minimize,
       resourceQuery: this.resourceQuery,
+      emitError: this.emitError,
+      emitWarning: this.emitWarning,
+      resolve: this.resolve,
+      loadModule: this.loadModule,
+      //fs: this.fs,
       optionsContext: this.rootContext ?? (this as any).options?.context
     };
 
     loader(`Created context for loader runner %O`, context);
 
-    const workerResult = await worker.run(context, {
-      emitError: this.emitError,
-      emitWarning: this.emitWarning,
-      resolve: this.resolve
-    });
+    const workerResult: any = await pool.runTask(context);
+
+    loader(`Worker returned result %O`, workerResult);
 
     if (!workerResult) {
+      loader(`worker returned empty result`);
       return;
     }
 
@@ -72,6 +80,8 @@ async function parallelLoader(this: loader.LoaderContext) {
 
     loader(`Returning compiled result back to webpack`);
     loaderAsyncCallback(null, ...result);
+
+    await pool.complete();
   } catch (err) {
     loaderAsyncCallback(err);
   }
