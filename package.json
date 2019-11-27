@@ -37,6 +37,7 @@
     "prepare": "echo",
     "test:unit": "echo",
     "lint:code": "echo",
+    "build": "tsc -b --verbose ./src/tsconfig.cjs.json ./src/tsconfig.types.json",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "devDependencies": {
@@ -63,5 +64,14 @@
     "loader-runner": "^3.1.0",
     "loader-utils": "^1.2.3"
   },
-  "files": []
+  "files": [
+    "dist/cjs/**/!(*.tsbuildinfo)",
+    "dist/types/**/!(*.tsbuildinfo)",
+    "src",
+    "CHANGELOG.md",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "tsconfig.json"
+  ]
 }

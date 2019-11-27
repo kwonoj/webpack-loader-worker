@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "es2015",
+    "target": "esnext",
+    "declaration": true,
+    "declarationDir": "../dist/types",
+    "tsBuildInfoFile": "../dist/types/tsconfig.types.tsbuildinfo",
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "removeComments": false,
+    "composite": true,
+    "incremental": true
+  }
+}
