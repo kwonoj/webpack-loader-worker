@@ -1,13 +1,12 @@
 import * as os from 'os';
-import * as path from 'path';
-import { Remote, proxy, wrap } from 'comlink';
+
 import { Subject, from, of, zip } from 'rxjs';
 import { catchError, map, mergeMap } from 'rxjs/operators';
-import { Worker } from 'worker_threads';
-import { getLogger } from './utils/logger';
-const nodeEndpoint: Function = require('comlink/dist/umd/node-adapter');
 
-type WorkerTaskRunner = Remote<typeof import('./adapters/workerEntryPoint').taskRunner>;
+import { createWorker } from './adapters/createWorker';
+import { getLogger } from './utils/logger';
+import { proxy } from 'comlink';
+
 const log = getLogger('threadPool');
 
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
@@ -15,27 +14,19 @@ const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
 /**
  * Naive thread pool to execute functions in loader.
  */
-const createPool = (maxWorkers = DEFAULT_WORKER_COUNT, id: string) => {
-  log.info('createPool: creating worker threads pool %s', id);
+const createPool = (maxWorkers = DEFAULT_WORKER_COUNT, loaderId: string) => {
+  log.info('createPool: creating worker threads pool %s', loaderId);
   const taskQueue = new Subject<any>();
-  const workerQueue = new Subject<WorkerTaskRunner>();
+  const workerQueue = new Subject<ReturnType<typeof createWorker>>();
 
-  const workers: Array<{ wrapped: WorkerTaskRunner; terminate: () => Promise<number> }> = [
-    ...new Array(maxWorkers)
-  ].map(() => {
-    const worker = new Worker(path.resolve(__dirname, './workerFunction.js'));
-    return {
-      wrapped: wrap(nodeEndpoint(worker)) as any,
-      terminate: () => worker.terminate()
-    };
-  });
+  const workers = [...new Array(maxWorkers)].map(() => createWorker(loaderId));
 
   const pushAvailableWorker = async () => {
     for (const worker of workers) {
-      const { wrapped } = worker;
-      const available = await wrapped.isAvailable();
+      const { workerProxy } = worker;
+      const available = await workerProxy.isAvailable();
       if (available) {
-        workerQueue.next(wrapped);
+        workerQueue.next(worker);
         break;
       }
     }
@@ -51,7 +42,7 @@ const createPool = (maxWorkers = DEFAULT_WORKER_COUNT, id: string) => {
   zip(taskQueue, workerQueue)
     .pipe(
       mergeMap(([task, worker]) => {
-        return from(worker.run(task.context, task.proxyContext)).pipe(
+        return from(worker.workerProxy.run(task.context, task.proxyContext)).pipe(
           map(result => getResultContext(task, result, null)),
           catchError(err => of(getResultContext(task, null, err)))
         );
