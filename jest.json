@@ -1,0 +1,38 @@
+{
+  "preset": "ts-jest",
+  "testMatch": [
+    "**/spec/jest/**/*-spec.ts"
+  ],
+  "globals": {
+    "ts-jest": {
+      "diagnostics": false
+    }
+  },
+  "bail": true,
+  "resetMocks": true,
+  "testEnvironment": "node",
+  "moduleFileExtensions": [
+    "js",
+    "jsx",
+    "json",
+    "ts",
+    "tsx"
+  ],
+  "testPathIgnorePatterns": [
+    "/.tmp/"
+  ],
+  "coverageReporters": [
+    "lcov"
+  ],
+  "collectCoverageFrom": [
+    "src/**/*.{ts, tsx}",
+    "!**/*.d.ts"
+  ],
+  "reporters": [
+    "jest-spin-reporter"
+  ],
+  "coveragePathIgnorePatterns": [
+    "<rootDir>/node_modules/",
+    "<rootDir>/spec/.*\\.(ts|js)$"
+  ]
+}
