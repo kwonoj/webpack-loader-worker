@@ -1,7 +1,6 @@
-import { loader } from 'webpack';
-import * as loaderUtils from 'loader-utils';
-import { workerAdapter } from './adapters/jestWorkerAdapter';
 import * as debug from 'debug';
+import * as loaderUtils from 'loader-utils';
+import { loader } from 'webpack';
 
 const loader = debug('parallelLoader:pitch');
 
@@ -32,8 +31,10 @@ async function parallelLoader(this: loader.LoaderContext) {
   }
 
   loader(`Creating worker pool with ${maxWorkers} maximum workers`);
-  const worker = workerAdapter({ maxWorkers });
+  const worker: any = null;
   const loaderAsyncCallback = this.async()!;
+
+  throw new Error('not implemented');
 
   try {
     const context = {
@@ -52,7 +53,7 @@ async function parallelLoader(this: loader.LoaderContext) {
       optionsContext: this.rootContext ?? (this as any).options?.context
     };
 
-    loader(`Created context for loader runner %O`, context);
+    loader('Created context for loader runner %O', context);
 
     const workerResult = await worker.run(context, {
       emitError: this.emitError,
@@ -65,12 +66,12 @@ async function parallelLoader(this: loader.LoaderContext) {
     }
 
     const { fileDependencies, contextDependencies, result } = workerResult;
-    loader(`Worker returned result %O`, result);
+    loader('Worker returned result %O', result);
 
     (fileDependencies ?? []).forEach((fileDep: string) => this.addDependency(fileDep));
     (contextDependencies ?? []).forEach((contextDep: string) => this.addContextDependency(contextDep));
 
-    loader(`Returning compiled result back to webpack`);
+    loader('Returning compiled result back to webpack');
     loaderAsyncCallback(null, ...result);
   } catch (err) {
     loaderAsyncCallback(err);
