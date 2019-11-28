@@ -1,25 +1,24 @@
 {
-  "name": "parallel-loader",
+  "name": "webpack-loader-worker",
   "version": "0.0.1",
-  "description": "Execute webpack loader in parallel",
+  "description": "Execute webpack loader in worker threads",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kwonoj/parallel-loader.git"
+    "url": "git+https://github.com/kwonoj/webpack-loader-worker.git"
   },
   "keywords": [
     "webpack",
     "loader",
     "thread",
-    "worker",
-    "parallel"
+    "worker"
   ],
   "author": "OJ Kwon <kwon.ohjoong@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/kwonoj/parallel-loader/issues"
+    "url": "https://github.com/kwonoj/webpack-loader-worker/issues"
   },
-  "homepage": "https://github.com/kwonoj/parallel-loader#readme",
+  "homepage": "https://github.com/kwonoj/webpack-loader-worker#readme",
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -e",
