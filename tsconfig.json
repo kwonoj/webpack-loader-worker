@@ -15,6 +15,7 @@
     "suppressImplicitAnyIndexErrors": true,
     "target": "es2018",
     "lib": [
+      "dom",
       "es2018"
     ]
   }

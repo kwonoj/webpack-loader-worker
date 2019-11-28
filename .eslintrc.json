@@ -46,6 +46,12 @@
         ],
         "no-shadow": [
             "error"
+        ],
+        "sort-imports": [
+            "error"
+        ],
+        "no-empty-function": [
+            "error"
         ]
     }
 }
