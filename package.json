@@ -29,6 +29,7 @@
   "lint-staged": {
     "*.{ts,js}": [
       "prettier --write",
+      "import-sort --write",
       "eslint --fix",
       "git add"
     ]
@@ -60,6 +61,7 @@
     "eslint-config-typescript": "^3.0.0",
     "eslint-plugin-prettier": "^3.1.1",
     "husky": "^3.1.0",
+    "import-sort-cli": "^6.0.0",
     "jest": "^24.9.0",
     "jest-spin-reporter": "^2.0.0",
     "less": "^3.10.3",
