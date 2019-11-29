@@ -1,3 +1,5 @@
+import { RunLoaderResult } from 'loader-runner';
+
 /**
  * Object will be queued into taskqueue to forward into worker.
  */
@@ -15,7 +17,7 @@ interface WorkerTaskData {
   /**
    * callback being called once worker completes its job with results
    */
-  onComplete: (value?: unknown) => void;
+  onComplete: (value?: RunLoaderResult) => void;
   /**
    * callback being called once worker raises error
    */
