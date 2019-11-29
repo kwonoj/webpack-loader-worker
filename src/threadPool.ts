@@ -73,7 +73,7 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
  * Naive thread pool to execute functions in loader.
  */
 const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
-  const log = getLogger(`threadPool:${loaderId}`);
+  const log = getLogger(`[${loaderId}] threadPool`);
   log.info('createPool: creating worker threads pool');
 
   let taskId = 1;
