@@ -5,7 +5,7 @@
 const taskRunner = (() => {
   return {
     isAvailable: () => false,
-    run: (..._args: Array<any>) => {
+    run: (..._args: Array<any>): any => {
       /* noop */
     }
   };
