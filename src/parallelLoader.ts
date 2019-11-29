@@ -1,8 +1,9 @@
 import * as debug from 'debug';
 import * as loaderUtils from 'loader-utils';
+
 import { loader } from 'webpack';
 
-const loader = debug('parallelLoader:pitch');
+const loaderd = debug('parallelLoader:pitch');
 
 /**
  * naive detection if node.js allowed to use worker_threads
@@ -25,12 +26,12 @@ async function parallelLoader(this: loader.LoaderContext) {
     debug.enable('parallelLoader*');
   }
 
-  loader('Initializing parallelLoader');
+  loaderd('Initializing parallelLoader');
   if (!isWorkerEnabled()) {
     throw new Error('Cannot initialize loader, ensure worker_threads is enabled');
   }
 
-  loader(`Creating worker pool with ${maxWorkers} maximum workers`);
+  loaderd(`Creating worker pool with ${maxWorkers} maximum workers`);
   const worker: any = null;
   const loaderAsyncCallback = this.async()!;
 
@@ -38,7 +39,7 @@ async function parallelLoader(this: loader.LoaderContext) {
 
   try {
     const context = {
-      loaders: this.loaders.slice(this.loaderIndex + 1).map(l => {
+      loaders: this.loaders.slice(this.loaderIndex + 1).map((l) => {
         return {
           loader: l.path,
           options: l.options,
@@ -53,7 +54,7 @@ async function parallelLoader(this: loader.LoaderContext) {
       optionsContext: this.rootContext ?? (this as any).options?.context
     };
 
-    loader('Created context for loader runner %O', context);
+    loaderd('Created context for loader runner %O', context);
 
     const workerResult = await worker.run(context, {
       emitError: this.emitError,
@@ -66,12 +67,12 @@ async function parallelLoader(this: loader.LoaderContext) {
     }
 
     const { fileDependencies, contextDependencies, result } = workerResult;
-    loader('Worker returned result %O', result);
+    loaderd('Worker returned result %O', result);
 
     (fileDependencies ?? []).forEach((fileDep: string) => this.addDependency(fileDep));
     (contextDependencies ?? []).forEach((contextDep: string) => this.addContextDependency(contextDep));
 
-    loader('Returning compiled result back to webpack');
+    loaderd('Returning compiled result back to webpack');
     loaderAsyncCallback(null, ...result);
   } catch (err) {
     loaderAsyncCallback(err);
