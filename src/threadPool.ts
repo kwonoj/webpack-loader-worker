@@ -14,7 +14,7 @@ const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
 /**
  * Naive thread pool to execute functions in loader.
  */
-const createPool = (maxWorkers = DEFAULT_WORKER_COUNT, loaderId: string) => {
+const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
   log.info('createPool: creating worker threads pool %s', loaderId);
   const taskQueue = new Subject<any>();
   const workerQueue = new Subject<ReturnType<typeof createWorker>>();
