@@ -126,8 +126,8 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
 
   return {
     /**
-     * Notify all threads to gracefully exit. If there is work in progress,
-     * it'll wait until task completes.
+     * Stops all thread. This'll attempt to workers asap, only expected to call
+     * once all jobs completed.
      */
     complete: async () => {
       for (const worker of workerSet) {
