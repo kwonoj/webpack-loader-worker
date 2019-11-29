@@ -33,7 +33,7 @@ describe('threadPool', () => {
 
     const workerMock = () => {
       return {
-        run: (context: typeof task) => Promise.resolve(context.value)
+        run: (value: typeof task) => Promise.resolve(value.context.value)
       };
     };
 
@@ -58,11 +58,11 @@ describe('threadPool', () => {
       let running = false;
       return {
         isAvailable: () => Promise.resolve(!running),
-        run: (context: { value: string }) => {
+        run: (task: any) => {
           running = true;
           return new Promise((resolve) => {
             setTimeout(() => {
-              resolve(context.value);
+              resolve(task.context.value);
               running = false;
             }, 50);
           });
@@ -82,7 +82,7 @@ describe('threadPool', () => {
     const workerMock = () => {
       return {
         isAvailable: () => Promise.resolve(true),
-        run: (context: any) => (context.reject !== true ? Promise.resolve(1) : Promise.reject('error'))
+        run: (value: any) => (value.context.reject !== true ? Promise.resolve(1) : Promise.reject('error'))
       };
     };
 

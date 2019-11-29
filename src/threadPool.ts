@@ -3,35 +3,12 @@ import * as os from 'os';
 import { Subject, from, of, zip } from 'rxjs';
 import { catchError, map, mapTo, mergeMap, tap } from 'rxjs/operators';
 
+import { WorkerTaskData } from './adapters/WorkerTaskData';
 import { createWorker } from './adapters/createWorker';
 import { getLogger } from './utils/logger';
 import { proxy } from 'comlink';
 
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
-
-/**
- * Object will be queued into taskqueue to forward into worker.
- */
-interface WorkerTaskData {
-  id: number;
-  /**
-   * Transferrable context without proxy, mostly POJO
-   */
-  context: object;
-  /**
-   * Webpack.loader.LoaderContext's function which cannot be
-   * transferred, wrapped as comlink proxy
-   */
-  proxyContext: object;
-  /**
-   * callback being called once worker completes its job with results
-   */
-  onComplete: (value?: unknown) => void;
-  /**
-   * callback being called once worker raises error
-   */
-  onError: (err?: unknown) => void;
-}
 
 const constructResultContext = (task: WorkerTaskData, { result, err }: Partial<{ result: unknown; err: unknown }>) => ({
   onComplete: task.onComplete,
@@ -120,10 +97,10 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
     .pipe(
       mergeMap(([task, worker]) => {
         const { workerProxy } = worker;
-        const { context, proxyContext } = task;
+        const { context, proxyContext, id } = task;
         log.info('Running task [%s] via [%s]', task.id, worker.workerId);
 
-        return from(workerProxy.run(context, proxyContext)).pipe(
+        return from(workerProxy.run({ id, context, proxyContext })).pipe(
           map((result: unknown) => constructResultContext(task, { result })),
           catchError((err: unknown) => of(constructResultContext(task, { err })))
         );
