@@ -10,7 +10,7 @@ const nodeEndpoint: Function = require('comlink/dist/umd/node-adapter');
 type WorkerTaskRunner = typeof import('./workerEntryPoint').taskRunner;
 
 const createWorker = (loaderId: string) => {
-  const workerId = nanoid(8);
+  const workerId = nanoid(6);
   const log = getLogger(`[${loaderId}:${workerId}] createWorker`);
 
   log.info('Creating new worker instance');
