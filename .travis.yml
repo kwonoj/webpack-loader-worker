@@ -1,0 +1,30 @@
+language: node_js
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.npm
+
+env:
+  matrix:
+  - NODE_VER=12 FULL_VALIDATE=true
+  - NODE_VER=13
+
+matrix:
+  fast_finish: true
+
+before_install:
+  - nvm install $NODE_VER
+  - npm install -g npm@latest
+  - node -v && npm -v
+
+install:
+  - npm ci
+  - if [ "$FULL_VALIDATE" == "true" ]; then npm run lint:code && npm run lint:circular; fi
+
+script:
+  - npm run build
+  - npm run test:unit
+
+after_success:
+  - if [ "$FULL_VALIDATE" == "true" ]; then bash <(curl -s https://codecov.io/bash); fi
