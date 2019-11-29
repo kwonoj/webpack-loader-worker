@@ -88,6 +88,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
   const invalidateWorkerQueue = async () => {
     if (workerSet.length < maxWorkers) {
       const worker = createWorker(loaderId);
+      workerSet.push(worker);
       log.info('invalidateWorkerQueue: Created new worker instance [%s], queue for next task', worker.workerId);
       log.verbose('invalidateWorkerQueue: %O', workerSet);
       workerQueue.next(worker);
@@ -109,7 +110,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
   // via Promise.resolve / reject as completion callback.
   zip(
     taskQueue.pipe(
-      tap(task => {
+      tap((task) => {
         log.info('taskQueue: new task queued [%s]', task.id);
         log.verbose('taskQueue: %O', task);
       })
@@ -132,7 +133,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
         from(invalidateWorkerQueue()).pipe(mapTo(resultContext))
       )
     )
-    .subscribe(resultContext => {
+    .subscribe((resultContext) => {
       const { onComplete, onError, err, result, id } = resultContext;
       log.info('threadPool: task [%s] completes', id);
       log.verbose('threadPool: %O', result ?? err);
