@@ -2,7 +2,7 @@
   "name": "webpack-loader-worker",
   "version": "0.0.1",
   "description": "Execute webpack loader in worker threads",
-  "main": "index.js",
+  "main": "dist/cjs/webpackLoaderWorker.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kwonoj/webpack-loader-worker.git"
