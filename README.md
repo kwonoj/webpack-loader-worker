@@ -20,7 +20,6 @@ Put this loader in front of other loaders. The following loaders run in a worker
 use: [
   {
     loader: "webpack-loader-worker",
-    // loaders with equal options will share worker pools
     options: {
       // the number of spawned workers, defaults to (number of cpus - 1)
       maxWorkers: 2,
