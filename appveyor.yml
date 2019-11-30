@@ -14,5 +14,6 @@ build_script:
 
 test_script:
   - npm run test:unit
+  - npm run test:e2e
 
 version: "{build}"

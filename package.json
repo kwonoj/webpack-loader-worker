@@ -3,9 +3,13 @@
   "version": "0.0.1",
   "description": "Execute webpack loader in worker threads",
   "main": "dist/cjs/webpackLoaderWorker.js",
+  "types": "dist/types/webpackLoaderWorker.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kwonoj/webpack-loader-worker.git"
+  },
+  "engines": {
+    "node": ">=12"
   },
   "keywords": [
     "webpack",
@@ -35,12 +39,14 @@
     ]
   },
   "scripts": {
+    "prepublishOnly ": "npm-run-all build:clean prepush",
     "prepare": "npm-run-all build",
     "test:e2e": "ts-node --transpile-only ./spec/e2e/run.ts",
     "test:unit": "jest --config jest.json --coverage",
     "lint:code": "eslint --ext .ts ./src",
     "lint:circular": "depcruise --validate .dependency-cruiser.json -x \"^node_modules\" src",
     "build": "tsc -b --verbose ./src/tsconfig.cjs.json ./src/tsconfig.types.json",
+    "build:clean": "shx rm -rf ./dist",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "devDependencies": {
@@ -56,7 +62,6 @@
     "@typescript-eslint/parser": "^2.9.0",
     "chai": "^4.2.0",
     "chai-files": "^1.4.0",
-    "conventional-changelog": "^3.1.15",
     "css-loader": "^3.2.0",
     "dependency-cruiser": "^5.4.0",
     "eslint": "^6.7.1",
@@ -74,6 +79,7 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^1.19.1",
     "shelljs": "^0.8.3",
+    "shx": "^0.3.2",
     "ts-jest": "^24.2.0",
     "ts-loader": "^6.2.1",
     "ts-node": "^8.5.2",
@@ -83,6 +89,8 @@
   },
   "dependencies": {
     "comlink": "^4.1.0",
+    "conventional-changelog-cli": "^2.0.28",
+    "cz-conventional-changelog": "^3.0.2",
     "jest-worker": "^24.9.0",
     "loader-runner": "^3.1.0",
     "loader-utils": "^1.2.3",
