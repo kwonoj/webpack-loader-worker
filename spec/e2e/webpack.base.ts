@@ -53,7 +53,7 @@ const getBaseConfig = (thread: boolean) => ({
 
   plugins: [
     new MiniCssExtractPlugin({
-      filename: thread ? 'e2e.thread.sytle.css' : 'e2e.style.css'
+      filename: `e2e${thread ? '.thread' : ''}.style.css`
     })
   ]
 });
