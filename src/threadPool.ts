@@ -118,8 +118,8 @@ const createPool = (loaderId: string, maxWorkers?: number) => {
     )
     .subscribe((resultContext) => {
       const { onComplete, onError, err, result, id } = resultContext;
-      log.info('threadPool: task [%s] completes', id);
-      log.verbose('threadPool: %O', result ?? err);
+      log.info('task [%s] completed', id);
+      log.verbose(`${result ? 'succeed' : 'fail'}`, result ?? err);
       if (err) {
         onError(err);
       } else {

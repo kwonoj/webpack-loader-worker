@@ -32,15 +32,10 @@ const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType
  */
 async function webpackLoaderWorker(this: loader.LoaderContext) {
   const loaderId = nanoid(6);
-  const log = getLogger(`[${loaderId}] LoaderWorker`);
   const { maxWorkers, logLevel } = loaderUtils.getOptions(this);
+  enableLoggerGlobal(logLevel);
 
-  if (logLevel === 'info') {
-    enableLoggerGlobal(false);
-  } else if (logLevel === 'verbose') {
-    enableLoggerGlobal(true);
-  }
-
+  const log = getLogger(`[${loaderId}] LoaderWorker`);
   log.info('Initializing LoaderWorker');
 
   if (!isWorkerEnabled()) {
