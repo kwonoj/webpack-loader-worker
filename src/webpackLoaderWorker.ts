@@ -37,7 +37,7 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   const loaderId = nanoid(6);
   setupTransferHandler();
 
-  const { maxWorkers, logLevel } = loaderUtils.getOptions(this);
+  const { maxWorkers, logLevel } = loaderUtils.getOptions(this) ?? {};
   enableLoggerGlobal(logLevel);
 
   const log = getLogger(`[${loaderId}] LoaderWorker`);
