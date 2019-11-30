@@ -25,6 +25,7 @@ install:
 script:
   - npm run build
   - npm run test:unit
+  - npm run test:e2e
 
 after_success:
   - if [ "$FULL_VALIDATE" == "true" ]; then bash <(curl -s https://codecov.io/bash); fi
