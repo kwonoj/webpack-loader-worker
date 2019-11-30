@@ -106,6 +106,9 @@ const createPool = (loaderId: string, maxWorkers?: number) => {
         const { context, proxyContext, id } = task;
         log.info('Running task [%s] via [%s]', task.id, worker.workerId);
 
+        // note passing proxycontext as separate, top level param is intended.
+        // proxyContext is proxy(object) to let comlink do not close object - nesting this into other
+        // object will makes comlink try to clone.
         return from(workerProxy.run({ id, logLevel: getLogLevel() }, context, proxyContext)).pipe(
           map((result: any) => constructResultContext(task, { result })),
           catchError((err: unknown) => of(constructResultContext(task, { err })))
