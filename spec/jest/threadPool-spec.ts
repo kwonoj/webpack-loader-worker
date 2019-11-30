@@ -27,13 +27,13 @@ describe('threadPool', () => {
   });
 
   it('should able to run task', async () => {
-    const task = {
+    const task: any = {
       value: nanoid()
     };
 
     const workerMock = () => {
       return {
-        run: (context: typeof task) => Promise.resolve(context.value)
+        run: (_id: any, context: any) => Promise.resolve(context.value)
       };
     };
 
@@ -46,7 +46,7 @@ describe('threadPool', () => {
   });
 
   it('should able to run task more than maxworkers size', async () => {
-    const tasks = [
+    const tasks: Array<any> = [
       { value: nanoid() },
       { value: nanoid() },
       { value: nanoid() },
@@ -58,7 +58,7 @@ describe('threadPool', () => {
       let running = false;
       return {
         isAvailable: () => Promise.resolve(!running),
-        run: (context: { value: string }) => {
+        run: (_id: any, context: any) => {
           running = true;
           return new Promise((resolve) => {
             setTimeout(() => {
@@ -82,16 +82,16 @@ describe('threadPool', () => {
     const workerMock = () => {
       return {
         isAvailable: () => Promise.resolve(true),
-        run: (context: any) => (context.reject !== true ? Promise.resolve(1) : Promise.reject('error'))
+        run: (_id: any, context: any) => (context.reject !== true ? Promise.resolve(1) : Promise.reject('error'))
       };
     };
 
     configureWorkerMock(workerMock);
     const pool = createPool('id4', 2);
     // worker task exception should not take down pool subscription
-    expect(pool.runTask({ reject: true })).rejects.toEqual('error');
+    expect(pool.runTask({ reject: true } as any)).rejects.toEqual('error');
 
-    const result = await pool.runTask({});
+    const result = await pool.runTask({} as any);
     expect(result).toEqual(1);
   });
 });

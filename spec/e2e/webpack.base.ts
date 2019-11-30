@@ -1,12 +1,12 @@
 import * as path from 'path';
 
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const threadLoader = require.resolve('../../dist/cjs/parallelLoader');
+const threadLoader = require.resolve('../../dist/cjs/webpackLoaderWorker.js');
 
 const threadLoaderConfig = {
   loader: threadLoader,
   options: {
-    debugEnabled: true
+    logLevel: 'info'
   }
 };
 
@@ -53,7 +53,7 @@ const getBaseConfig = (thread: boolean) => ({
 
   plugins: [
     new MiniCssExtractPlugin({
-      filename: thread ? 'e2e.thread.sytle.css' : 'e2e.style.css'
+      filename: `e2e${thread ? '.thread' : ''}.style.css`
     })
   ]
 });

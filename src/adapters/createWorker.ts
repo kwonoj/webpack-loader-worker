@@ -1,8 +1,9 @@
 import * as path from 'path';
 
+import { releaseProxy, wrap } from 'comlink';
+
 import { Worker } from 'worker_threads';
 import { getLogger } from '../utils/logger';
-import { wrap } from 'comlink';
 
 const nanoid: typeof import('nanoid') = require('nanoid');
 const nodeEndpoint: Function = require('comlink/dist/umd/node-adapter');
@@ -10,7 +11,7 @@ const nodeEndpoint: Function = require('comlink/dist/umd/node-adapter');
 type WorkerTaskRunner = typeof import('./workerEntryPoint').taskRunner;
 
 const createWorker = (loaderId: string) => {
-  const workerId = nanoid(8);
+  const workerId = nanoid(6);
   const log = getLogger(`[${loaderId}:${workerId}] createWorker`);
 
   log.info('Creating new worker instance');
@@ -22,8 +23,14 @@ const createWorker = (loaderId: string) => {
     workerProxy,
     loaderId,
     workerId,
+    /**
+     * Stops worker thread. Currently this does not
+     * gracefully honor running task, only expect to
+     * be called once all loader task completed.
+     */
     terminate: () => {
-      throw new Error('not implemented');
+      workerProxy[releaseProxy]();
+      return worker.terminate();
     }
   };
 };

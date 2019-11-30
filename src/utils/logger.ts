@@ -1,19 +1,31 @@
-import * as debug from 'debug';
+const DEFAULT_NAMESPACE = '[LoaderWorker      ]';
+const VERBOSE_NAMESPACE = '[LoaderWorker:DEBUG]';
 
-const DEFAULT_NAMESPACE = '[LoaderWorker]';
-const VERBOSE_NAMESPACE = `[DEBUG] ${DEFAULT_NAMESPACE}`;
+let logLevel: 'verbose' | 'info';
+const getLogger = (namespace: string) => {
+  const logFn = (name: string) => (message: string, ...args: Array<any>) =>
+    console.log(`${name} ${namespace} ${message}`, ...args);
 
-const getLogger = (namespace: string) => ({
-  info: debug(`${DEFAULT_NAMESPACE} [${namespace}]`),
-  verbose: debug(`${VERBOSE_NAMESPACE} [${namespace}]`)
-});
+  const ret = {
+    info: (message: string, ...args: Array<any>) => {
+      if (logLevel === 'verbose' || logLevel === 'info') {
+        logFn(DEFAULT_NAMESPACE)(message, ...args);
+      }
+    },
+    verbose: (message: string, ...args: Array<any>) => {
+      if (logLevel === 'verbose') {
+        logFn(VERBOSE_NAMESPACE)(message, ...args);
+      }
+    }
+  };
 
-const enableLoggerGlobal = (verbose: boolean) => {
-  debug.enable(`${DEFAULT_NAMESPACE}*`);
-
-  if (verbose) {
-    debug.enable(`${VERBOSE_NAMESPACE}*`);
-  }
+  return ret;
 };
 
-export { getLogger, enableLoggerGlobal };
+const enableLoggerGlobal = (value: 'verbose' | 'info') => {
+  logLevel = value;
+};
+
+const getLogLevel = () => logLevel;
+
+export { getLogger, enableLoggerGlobal, getLogLevel };

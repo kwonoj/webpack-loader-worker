@@ -2,38 +2,20 @@ import * as os from 'os';
 
 import { Subject, from, of, zip } from 'rxjs';
 import { catchError, map, mapTo, mergeMap, tap } from 'rxjs/operators';
+import { getLogLevel, getLogger } from './utils/logger';
 
+import { RunLoaderResult } from 'loader-runner';
+import { WorkerTaskData } from './adapters/WorkerTaskData';
+import { WorkerTaskLoaderContext } from './utils/WorkerTaskLoaderContext';
 import { createWorker } from './adapters/createWorker';
-import { getLogger } from './utils/logger';
 import { proxy } from 'comlink';
 
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
 
-/**
- * Object will be queued into taskqueue to forward into worker.
- */
-interface WorkerTaskData {
-  id: number;
-  /**
-   * Transferrable context without proxy, mostly POJO
-   */
-  context: object;
-  /**
-   * Webpack.loader.LoaderContext's function which cannot be
-   * transferred, wrapped as comlink proxy
-   */
-  proxyContext: object;
-  /**
-   * callback being called once worker completes its job with results
-   */
-  onComplete: (value?: unknown) => void;
-  /**
-   * callback being called once worker raises error
-   */
-  onError: (err?: unknown) => void;
-}
-
-const constructResultContext = (task: WorkerTaskData, { result, err }: Partial<{ result: unknown; err: unknown }>) => ({
+const constructResultContext = (
+  task: WorkerTaskData,
+  { result, err }: Partial<{ result: RunLoaderResult; err: unknown }>
+) => ({
   onComplete: task.onComplete,
   onError: task.onError,
   result,
@@ -58,7 +40,7 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
   Object.entries(context).reduce(
     (acc, [key, value]) => {
       if (typeof value === 'function') {
-        acc[1][key] = value;
+        acc[1][key] = proxy(value);
         acc[0].proxyFnKeys?.push(key);
       } else {
         acc[0][key] = value;
@@ -72,9 +54,10 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
 /**
  * Naive thread pool to execute functions in loader.
  */
-const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
+const createPool = (loaderId: string, maxWorkers?: number) => {
+  const workerCount = maxWorkers ?? DEFAULT_WORKER_COUNT;
   const log = getLogger(`[${loaderId}] threadPool`);
-  log.info('createPool: creating worker threads pool');
+  log.info('createPool: creating worker threads pool with %s maxWorkers', workerCount);
 
   let taskId = 1;
   const taskQueue = new Subject<WorkerTaskData>();
@@ -86,7 +69,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
    * Pickup available worker thread, queue for next task
    */
   const invalidateWorkerQueue = async () => {
-    if (workerSet.length < maxWorkers) {
+    if (workerSet.length < workerCount) {
       const worker = createWorker(loaderId);
       workerSet.push(worker);
       log.info('invalidateWorkerQueue: Created new worker instance [%s], queue for next task', worker.workerId);
@@ -120,14 +103,17 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
     .pipe(
       mergeMap(([task, worker]) => {
         const { workerProxy } = worker;
-        const { context, proxyContext } = task;
+        const { context, proxyContext, id } = task;
         log.info('Running task [%s] via [%s]', task.id, worker.workerId);
 
-        return from(workerProxy.run(context, proxyContext)).pipe(
-          map((result: unknown) => constructResultContext(task, { result })),
+        // note passing proxycontext as separate, top level param is intended.
+        // proxyContext is proxy(object) to let comlink do not close object - nesting this into other
+        // object will makes comlink try to clone.
+        return from(workerProxy.run({ id, logLevel: getLogLevel() }, context, proxyContext)).pipe(
+          map((result: any) => constructResultContext(task, { result })),
           catchError((err: unknown) => of(constructResultContext(task, { err })))
         );
-      }, maxWorkers),
+      }, workerCount),
       //Once worker returns results, trigger invalidation to put another worker into queue for next task
       mergeMap((resultContext: ReturnType<typeof constructResultContext>) =>
         from(invalidateWorkerQueue()).pipe(mapTo(resultContext))
@@ -135,8 +121,8 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
     )
     .subscribe((resultContext) => {
       const { onComplete, onError, err, result, id } = resultContext;
-      log.info('threadPool: task [%s] completes', id);
-      log.verbose('threadPool: %O', result ?? err);
+      log.info('task [%s] completed', id);
+      log.verbose(`${result ? 'succeed' : 'fail'}`, result ?? err);
       if (err) {
         onError(err);
       } else {
@@ -149,8 +135,8 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
 
   return {
     /**
-     * Notify all threads to gracefully exit. If there is work in progress,
-     * it'll wait until task completes.
+     * Stops all thread. This'll attempt to workers asap, only expected to call
+     * once all jobs completed.
      */
     complete: async () => {
       for (const worker of workerSet) {
@@ -160,9 +146,12 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
     /**
      * Queue new task into thread pool and returns result asynchronously.
      */
-    runTask: (context: $TSFIXME) =>
+    runTask: (context: WorkerTaskLoaderContext): Promise<RunLoaderResult> =>
       new Promise((resolve, reject) => {
         const [normalContext, proxyContext] = marshallWorkerDataContext(context);
+        log.verbose('', normalContext);
+        log.verbose('', proxyContext);
+
         taskQueue.next({
           id: taskId++,
           context: normalContext,
@@ -175,4 +164,4 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
   };
 };
 
-export { createPool };
+export { createPool, WorkerTaskLoaderContext };
