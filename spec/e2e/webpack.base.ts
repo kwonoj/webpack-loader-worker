@@ -6,7 +6,7 @@ const threadLoader = require.resolve('../../dist/cjs/webpackLoaderWorker.js');
 const threadLoaderConfig = {
   loader: threadLoader,
   options: {
-    logLevel: 'verbose'
+    logLevel: 'info'
   }
 };
 

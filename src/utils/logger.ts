@@ -26,4 +26,6 @@ const enableLoggerGlobal = (value: 'verbose' | 'info') => {
   logLevel = value;
 };
 
-export { getLogger, enableLoggerGlobal };
+const getLogLevel = () => logLevel;
+
+export { getLogger, enableLoggerGlobal, getLogLevel };

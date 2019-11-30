@@ -5,6 +5,7 @@ import { enableLoggerGlobal, getLogger } from './utils/logger';
 import { createPool } from './threadPool';
 import { isWorkerEnabled } from './utils/isWorkerEnabled';
 import { loader } from 'webpack';
+import { setupTransferHandler } from './utils/messagePortTransferHandler';
 
 const nanoid: typeof import('nanoid') = require('nanoid');
 
@@ -12,8 +13,10 @@ const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType
   // Create object inherit current context except
   // few values we won't forward / or need augmentation.
   //
-  // fs is complex object to proxy, we'll let worker inject node's fs directly
-  const { fs, callback, async, ...ret } = context;
+  // `fs` will be injected in worker thread using node.js fs.
+  // [todo]: other objects are omitted until know if it's required, as want to avoid marshalling
+  // nested object if possible.
+  const { fs, callback, async, _module, _compilation, _compiler, ...ret } = context;
 
   //augment few properties
   ret['loaders'] = context.loaders.slice(context.loaderIndex + 1).map((l) => ({
@@ -32,6 +35,8 @@ const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType
  */
 async function webpackLoaderWorker(this: loader.LoaderContext) {
   const loaderId = nanoid(6);
+  setupTransferHandler();
+
   const { maxWorkers, logLevel } = loaderUtils.getOptions(this);
   enableLoggerGlobal(logLevel);
 
@@ -78,6 +83,9 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   } catch (err) {
     log.info('Unexpected error occurred %O', err);
     loaderAsyncCompletionCallback(err);
+  } finally {
+    // all threads should exit to let webpack coninue execution
+    await pool.complete();
   }
 }
 

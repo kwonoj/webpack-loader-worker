@@ -2,12 +2,12 @@ import * as os from 'os';
 
 import { Subject, from, of, zip } from 'rxjs';
 import { catchError, map, mapTo, mergeMap, tap } from 'rxjs/operators';
+import { getLogLevel, getLogger } from './utils/logger';
 
 import { RunLoaderResult } from 'loader-runner';
 import { WorkerTaskData } from './adapters/WorkerTaskData';
 import { WorkerTaskLoaderContext } from './utils/WorkerTaskLoaderContext';
 import { createWorker } from './adapters/createWorker';
-import { getLogger } from './utils/logger';
 import { proxy } from 'comlink';
 
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
@@ -40,7 +40,7 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
   Object.entries(context).reduce(
     (acc, [key, value]) => {
       if (typeof value === 'function') {
-        acc[1][key] = value;
+        acc[1][key] = proxy(value);
         acc[0].proxyFnKeys?.push(key);
       } else {
         acc[0][key] = value;
@@ -106,7 +106,7 @@ const createPool = (loaderId: string, maxWorkers?: number) => {
         const { context, proxyContext, id } = task;
         log.info('Running task [%s] via [%s]', task.id, worker.workerId);
 
-        return from(workerProxy.run({ id, context, proxyContext })).pipe(
+        return from(workerProxy.run({ id, logLevel: getLogLevel() }, context, proxyContext)).pipe(
           map((result: any) => constructResultContext(task, { result })),
           catchError((err: unknown) => of(constructResultContext(task, { err })))
         );
@@ -146,6 +146,9 @@ const createPool = (loaderId: string, maxWorkers?: number) => {
     runTask: (context: WorkerTaskLoaderContext): Promise<RunLoaderResult> =>
       new Promise((resolve, reject) => {
         const [normalContext, proxyContext] = marshallWorkerDataContext(context);
+        log.verbose('', normalContext);
+        log.verbose('', proxyContext);
+
         taskQueue.next({
           id: taskId++,
           context: normalContext,

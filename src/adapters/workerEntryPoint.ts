@@ -1,11 +1,10 @@
 import * as fs from 'fs';
 import * as loaderRunner from 'loader-runner';
 
+import { enableLoggerGlobal, getLogger } from '../utils/logger';
 import { expose, proxy } from 'comlink';
 
-import { WorkerTaskData } from './WorkerTaskData';
 import { WorkerTaskLoaderContext } from '../utils/WorkerTaskLoaderContext';
-import { getLogger } from '../utils/logger';
 import { parentPort } from 'worker_threads';
 import { promisify } from 'util';
 import { setupTransferHandler } from '../utils/messagePortTransferHandler';
@@ -60,11 +59,14 @@ const taskRunner = (() => {
   return {
     isAvailable: () => !isRunning,
     run: async (
-      task: Pick<WorkerTaskData, 'id' | 'context' | 'proxyContext'>
+      task: { id: number; logLevel: 'verbose' | 'info' },
+      context: Partial<WorkerTaskLoaderContext> & { proxyFnKeys: Array<string> },
+      proxyContext: object
     ): Promise<loaderRunner.RunLoaderResult> => {
       isRunning = true;
 
-      const { id, context, proxyContext } = task;
+      const { id, logLevel } = task;
+      enableLoggerGlobal(logLevel);
       const log = getLogger(`[${id}] taskRunner`);
       log.info('Executing task');
 
