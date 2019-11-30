@@ -1,12 +1,12 @@
 import * as path from 'path';
 
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const threadLoader = require.resolve('../../dist/cjs/parallelLoader');
+const threadLoader = require.resolve('../../dist/cjs/webpackLoaderWorker.js');
 
 const threadLoaderConfig = {
   loader: threadLoader,
   options: {
-    debugEnabled: true
+    logLevel: 'verbose'
   }
 };
 
