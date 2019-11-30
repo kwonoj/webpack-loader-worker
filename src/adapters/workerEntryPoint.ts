@@ -4,6 +4,7 @@ import * as loaderRunner from 'loader-runner';
 import { expose, proxy } from 'comlink';
 
 import { WorkerTaskData } from './WorkerTaskData';
+import { WorkerTaskLoaderContext } from '../utils/WorkerTaskLoaderContext';
 import { getLogger } from '../utils/logger';
 import { parentPort } from 'worker_threads';
 import { promisify } from 'util';
@@ -16,7 +17,10 @@ const asyncLoaderRunner = promisify(loaderRunner.runLoaders.bind(loaderRunner));
 /**
  * Construct option object for loaderRunner.
  */
-const buildLoaderOption = (context: $TSFIXME, proxyContext: $TSFIXME): loaderRunner.RunLoaderOption => {
+const buildLoaderOption = (
+  context: Partial<WorkerTaskLoaderContext> & { proxyFnKeys: Array<string> },
+  proxyContext: object
+): loaderRunner.RunLoaderOption => {
   // context is plain object cloned from main process
   const options = {
     ...context,
@@ -25,7 +29,7 @@ const buildLoaderOption = (context: $TSFIXME, proxyContext: $TSFIXME): loaderRun
     readResource: fs.readFile.bind(fs),
     context: {
       options: {
-        context: context.optionsContext
+        context: context.rootContext
       },
       fs,
       webpack: true
@@ -42,7 +46,7 @@ const buildLoaderOption = (context: $TSFIXME, proxyContext: $TSFIXME): loaderRun
   options.context['resolve'] = (resolveContext: string, request: string, callback: Function) =>
     proxyContext['resolve'](resolveContext, request, proxy(callback));
 
-  return options;
+  return options as loaderRunner.RunLoaderOption;
 };
 
 /**
@@ -55,7 +59,9 @@ const taskRunner = (() => {
 
   return {
     isAvailable: () => !isRunning,
-    run: async (task: Pick<WorkerTaskData, 'id' | 'context' | 'proxyContext'>) => {
+    run: async (
+      task: Pick<WorkerTaskData, 'id' | 'context' | 'proxyContext'>
+    ): Promise<loaderRunner.RunLoaderResult> => {
       isRunning = true;
 
       const { id, context, proxyContext } = task;

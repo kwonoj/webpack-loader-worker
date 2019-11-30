@@ -1,4 +1,5 @@
 import { RunLoaderResult } from 'loader-runner';
+import { WorkerTaskLoaderContext } from '../utils/WorkerTaskLoaderContext';
 
 /**
  * Object will be queued into taskqueue to forward into worker.
@@ -8,7 +9,7 @@ interface WorkerTaskData {
   /**
    * Transferrable context without proxy, mostly POJO
    */
-  context: object;
+  context: Partial<WorkerTaskLoaderContext> & { proxyFnKeys: Array<string> };
   /**
    * Webpack.loader.LoaderContext's function which cannot be
    * transferred, wrapped as comlink proxy

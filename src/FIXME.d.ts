@@ -1,1 +1,0 @@
-type $TSFIXME = any;

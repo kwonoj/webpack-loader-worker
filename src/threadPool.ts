@@ -3,14 +3,19 @@ import * as os from 'os';
 import { Subject, from, of, zip } from 'rxjs';
 import { catchError, map, mapTo, mergeMap, tap } from 'rxjs/operators';
 
+import { RunLoaderResult } from 'loader-runner';
 import { WorkerTaskData } from './adapters/WorkerTaskData';
+import { WorkerTaskLoaderContext } from './utils/WorkerTaskLoaderContext';
 import { createWorker } from './adapters/createWorker';
 import { getLogger } from './utils/logger';
 import { proxy } from 'comlink';
 
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
 
-const constructResultContext = (task: WorkerTaskData, { result, err }: Partial<{ result: unknown; err: unknown }>) => ({
+const constructResultContext = (
+  task: WorkerTaskData,
+  { result, err }: Partial<{ result: RunLoaderResult; err: unknown }>
+) => ({
   onComplete: task.onComplete,
   onError: task.onError,
   result,
@@ -49,9 +54,10 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
 /**
  * Naive thread pool to execute functions in loader.
  */
-const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
+const createPool = (loaderId: string, maxWorkers?: number) => {
+  const workerCount = maxWorkers ?? DEFAULT_WORKER_COUNT;
   const log = getLogger(`[${loaderId}] threadPool`);
-  log.info('createPool: creating worker threads pool');
+  log.info('createPool: creating worker threads pool with %s maxWorkers', workerCount);
 
   let taskId = 1;
   const taskQueue = new Subject<WorkerTaskData>();
@@ -63,7 +69,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
    * Pickup available worker thread, queue for next task
    */
   const invalidateWorkerQueue = async () => {
-    if (workerSet.length < maxWorkers) {
+    if (workerSet.length < workerCount) {
       const worker = createWorker(loaderId);
       workerSet.push(worker);
       log.info('invalidateWorkerQueue: Created new worker instance [%s], queue for next task', worker.workerId);
@@ -101,10 +107,10 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
         log.info('Running task [%s] via [%s]', task.id, worker.workerId);
 
         return from(workerProxy.run({ id, context, proxyContext })).pipe(
-          map((result: unknown) => constructResultContext(task, { result })),
+          map((result: any) => constructResultContext(task, { result })),
           catchError((err: unknown) => of(constructResultContext(task, { err })))
         );
-      }, maxWorkers),
+      }, workerCount),
       //Once worker returns results, trigger invalidation to put another worker into queue for next task
       mergeMap((resultContext: ReturnType<typeof constructResultContext>) =>
         from(invalidateWorkerQueue()).pipe(mapTo(resultContext))
@@ -137,7 +143,7 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
     /**
      * Queue new task into thread pool and returns result asynchronously.
      */
-    runTask: (context: $TSFIXME) =>
+    runTask: (context: WorkerTaskLoaderContext): Promise<RunLoaderResult> =>
       new Promise((resolve, reject) => {
         const [normalContext, proxyContext] = marshallWorkerDataContext(context);
         taskQueue.next({
@@ -152,4 +158,4 @@ const createPool = (loaderId: string, maxWorkers = DEFAULT_WORKER_COUNT) => {
   };
 };
 
-export { createPool };
+export { createPool, WorkerTaskLoaderContext };
