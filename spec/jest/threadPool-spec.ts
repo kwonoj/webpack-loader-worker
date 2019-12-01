@@ -2,6 +2,9 @@ import { createPool } from '../../src/threadPool';
 const { configureWorkerMock } = require('../../src/adapters/createWorker');
 const nanoid: typeof import('nanoid') = require('nanoid');
 
+// disabling memoization
+jest.mock('lodash.memoize', () => (x: any) => x);
+
 jest.mock('../../src/adapters/createWorker', () => {
   let workerId = 1;
   let _workerCreateDelegate: Function = jest.fn(() => jest.fn());
@@ -11,8 +14,7 @@ jest.mock('../../src/adapters/createWorker', () => {
       return {
         workerProxy: _workerCreateDelegate(loaderId, workerId),
         loaderId,
-        workerId: workerId++,
-        terminate: jest.fn()
+        workerId: workerId++
       };
     },
     configureWorkerMock: (workerCreateDelegate: Function) => {
@@ -23,7 +25,9 @@ jest.mock('../../src/adapters/createWorker', () => {
 
 describe('threadPool', () => {
   it('should able to create pool', () => {
-    expect(createPool('id1')).toBeDefined();
+    const pool = createPool(1);
+    expect(pool).toBeDefined();
+    pool.dispose();
   });
 
   it('should able to run task', async () => {
@@ -33,16 +37,18 @@ describe('threadPool', () => {
 
     const workerMock = () => {
       return {
+        isAvailable: () => Promise.resolve(true),
         run: (_id: any, context: any) => Promise.resolve(context.value)
       };
     };
 
     configureWorkerMock(workerMock);
 
-    const pool = createPool('id2');
+    const pool = createPool(2);
     const result = await pool.runTask(task);
 
     expect(result).toEqual(task.value);
+    pool.dispose();
   });
 
   it('should able to run task more than maxworkers size', async () => {
@@ -58,6 +64,7 @@ describe('threadPool', () => {
       let running = false;
       return {
         isAvailable: () => Promise.resolve(!running),
+        close: () => Promise.resolve(),
         run: (_id: any, context: any) => {
           running = true;
           return new Promise((resolve) => {
@@ -72,26 +79,29 @@ describe('threadPool', () => {
 
     configureWorkerMock(workerMock);
 
-    const pool = createPool('id3', 4);
+    const pool = createPool(4);
     const results = await Promise.all(tasks.map((task) => pool.runTask(task)));
 
     expect(results).toEqual(tasks.map((task) => task.value));
+    pool.dispose();
   });
 
   it('should handle error', async () => {
     const workerMock = () => {
       return {
         isAvailable: () => Promise.resolve(true),
+        close: () => Promise.resolve(),
         run: (_id: any, context: any) => (context.reject !== true ? Promise.resolve(1) : Promise.reject('error'))
       };
     };
 
     configureWorkerMock(workerMock);
-    const pool = createPool('id4', 2);
+    const pool = createPool(2);
     // worker task exception should not take down pool subscription
     expect(pool.runTask({ reject: true } as any)).rejects.toEqual('error');
 
     const result = await pool.runTask({} as any);
     expect(result).toEqual(1);
+    pool.dispose();
   });
 });
