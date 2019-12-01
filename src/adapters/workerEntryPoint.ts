@@ -53,11 +53,12 @@ const buildLoaderOption = (
  * exposed via comlink proxy.
  */
 const taskRunner = (() => {
-  let isRunning = false;
   setupTransferHandler();
+  let isRunning = false;
 
   return {
     isAvailable: () => !isRunning,
+    close: () => process.exit(isRunning ? -1 : 0),
     run: async (
       task: { id: number; logLevel: 'verbose' | 'info' },
       context: Partial<WorkerTaskLoaderContext> & { proxyFnKeys: Array<string> },
@@ -71,11 +72,9 @@ const taskRunner = (() => {
       log.info('Executing task');
 
       const loaderOptions = buildLoaderOption(context, proxyContext);
-      log.verbose('Constructed loader options %O', loaderOptions);
 
       const result = await asyncLoaderRunner(loaderOptions);
       log.info('Task completed');
-      log.verbose('Task result %O', result);
 
       isRunning = false;
       return result;
