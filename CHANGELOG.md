@@ -1,3 +1,15 @@
+<a name="0.0.3"></a>
+## [0.0.3](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.2...v0.0.3) (2019-12-01)
+
+
+### Features
+
+* **createworker:** expose thread exit interface ([2a30ea3](https://github.com/kwonoj/webpack-loader-worker/commit/2a30ea3))
+* **threadpool:** reuse threadpool ([ce65887](https://github.com/kwonoj/webpack-loader-worker/commit/ce65887))
+* **workerentrypoint:** allow exit thread ([b9fabed](https://github.com/kwonoj/webpack-loader-worker/commit/b9fabed))
+
+
+
 <a name="0.0.2"></a>
 ## [0.0.2](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.1...v0.0.2) (2019-11-30)
 
