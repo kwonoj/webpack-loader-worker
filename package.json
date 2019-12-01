@@ -1,6 +1,6 @@
 {
   "name": "webpack-loader-worker",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Execute webpack loader in worker threads",
   "main": "dist/cjs/webpackLoaderWorker.js",
   "types": "dist/types/webpackLoaderWorker.d.ts",
@@ -94,6 +94,7 @@
     "jest-worker": "^24.9.0",
     "loader-runner": "^3.1.0",
     "loader-utils": "^1.2.3",
+    "lodash.memoize": "^4.1.2",
     "nanoid": "^2.1.7",
     "rxjs": "^6.5.3"
   },

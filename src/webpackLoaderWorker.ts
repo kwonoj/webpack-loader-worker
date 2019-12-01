@@ -47,7 +47,7 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
     throw new Error('Cannot initialize loader, ensure worker_threads is enabled');
   }
 
-  const pool = createPool(loaderId, maxWorkers);
+  const pool = createPool(maxWorkers);
   // acquire async completion callback from webpack, let webpack know
   // this is async loader
   const loaderAsyncCompletionCallback = this.async()!;
@@ -83,9 +83,6 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   } catch (err) {
     log.info('Unexpected error occurred %O', err);
     loaderAsyncCompletionCallback(err);
-  } finally {
-    // all threads should exit to let webpack coninue execution
-    await pool.complete();
   }
 }
 

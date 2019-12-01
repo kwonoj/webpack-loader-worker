@@ -18,19 +18,27 @@ const createWorker = (loaderId: string) => {
 
   const worker = new Worker(path.resolve(__dirname, './workerEntryPoint.js'));
   const workerProxy = wrap<WorkerTaskRunner>(nodeEndpoint(worker));
+  worker.unref();
+
+  let disposed = false;
 
   return {
+    disposed,
     workerProxy,
     loaderId,
     workerId,
-    /**
-     * Stops worker thread. Currently this does not
-     * gracefully honor running task, only expect to
-     * be called once all loader task completed.
-     */
-    terminate: () => {
-      workerProxy[releaseProxy]();
-      return worker.terminate();
+    close: () => {
+      return new Promise((resolve) => {
+        worker.once('exit', () => {
+          disposed = true;
+          log.info('Worker instance disposed');
+          workerProxy[releaseProxy]();
+          resolve();
+        });
+
+        //[todo]: gracefully close by waiting running task
+        workerProxy.close();
+      });
     }
   };
 };
