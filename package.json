@@ -1,6 +1,6 @@
 {
   "name": "webpack-loader-worker",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Execute webpack loader in worker threads",
   "main": "dist/cjs/webpackLoaderWorker.js",
   "types": "dist/types/webpackLoaderWorker.d.ts",
