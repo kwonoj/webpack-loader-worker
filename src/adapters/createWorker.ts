@@ -16,7 +16,7 @@ const createWorker = (loaderId: string) => {
 
   log.info('Creating new worker instance');
 
-  const worker = new Worker(path.resolve(__dirname, './workerEntryPoint.js'));
+  const worker = new Worker(path.resolve(__dirname, './workerEntryPoint.js'), { workerData: { loaderId, workerId } });
   const workerProxy = wrap<WorkerTaskRunner>(nodeEndpoint(worker));
   worker.unref();
 
@@ -36,7 +36,6 @@ const createWorker = (loaderId: string) => {
           resolve();
         });
 
-        //[todo]: gracefully close by waiting running task
         workerProxy.close();
       });
     }
