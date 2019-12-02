@@ -1,38 +1,12 @@
 import * as loaderUtils from 'loader-utils';
 
-import { Compiler, loader } from 'webpack';
 import { enableLoggerGlobal, getLogger } from './utils/logger';
 
 import { createPool } from './threadPool';
 import { isWorkerEnabled } from './utils/isWorkerEnabled';
+import { loader } from 'webpack';
 
 const nanoid: typeof import('nanoid') = require('nanoid');
-
-/**
- * Set event handler to be triggered when all of compiler completed its job.
- * Since loaderContext does not know how many compilers running, we'll register
- * event handler per each compiler than trigger teardown last one emits completion.
- */
-const registerAllCompilerDoneEvent = (() => {
-  const compilerSet = new Set();
-  const log = getLogger('registerAllCompilerDoneEvent');
-  let doneCount = 0;
-
-  return (compiler: Compiler, done: () => Promise<void>) => {
-    if (compilerSet.has(compiler)) {
-      return;
-    }
-    compilerSet.add(compiler);
-    compiler.hooks.done.tapPromise('done', () => {
-      doneCount++;
-      if (doneCount === compilerSet.size) {
-        log.info('All compilers reported completion, trigger teardown');
-        return done();
-      }
-      return Promise.resolve();
-    });
-  };
-})();
 
 const buildWorkerLoaderContext = (context: loader.LoaderContext, _log: ReturnType<typeof getLogger>) => {
   // Create object inherit current context except
@@ -70,7 +44,6 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   }
 
   const pool = createPool(maxWorkers);
-  registerAllCompilerDoneEvent(this._compiler, () => pool.dispose());
 
   // acquire async completion callback from webpack, let webpack know
   // this is async loader

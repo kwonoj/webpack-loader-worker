@@ -15,7 +15,8 @@ jest.mock('../../src/adapters/createWorker', () => {
         workerProxy: _workerCreateDelegate(loaderId, workerId),
         loaderId,
         workerId: workerId++,
-        close: jest.fn()
+        close: jest.fn(),
+        disposed: false
       };
     },
     configureWorkerMock: (workerCreateDelegate: Function) => {
@@ -40,7 +41,7 @@ describe('threadPool', () => {
     pool.dispose();
   });
 
-  it('should able to run task', async () => {
+  fit('should able to run task', async () => {
     const task: any = {
       value: nanoid()
     };

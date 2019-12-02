@@ -28,10 +28,10 @@ const createWorker = (loaderId: string) => {
     loaderId,
     workerId,
     close: () => {
+      disposed = true;
       return new Promise((resolve) => {
         worker.once('exit', () => {
-          disposed = true;
-          log.info('Worker instance disposed');
+          log.info(`[${loaderId}:${workerId}] Worker instance disposed`);
           workerProxy[releaseProxy]();
           resolve();
         });
