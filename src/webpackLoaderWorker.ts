@@ -5,11 +5,10 @@ import { enableLoggerGlobal, getLogger } from './utils/logger';
 import { createPool } from './threadPool';
 import { isWorkerEnabled } from './utils/isWorkerEnabled';
 import { loader } from 'webpack';
-import { setupTransferHandler } from './utils/messagePortTransferHandler';
 
 const nanoid: typeof import('nanoid') = require('nanoid');
 
-const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType<typeof getLogger>) => {
+const buildWorkerLoaderContext = (context: loader.LoaderContext, _log: ReturnType<typeof getLogger>) => {
   // Create object inherit current context except
   // few values we won't forward / or need augmentation.
   //
@@ -25,8 +24,6 @@ const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType
     ident: l.ident
   }));
   ret.resource = context.resourcePath + (context.resourceQuery || '');
-
-  log.verbose('buildWorkerLoaderContext: created context %O', ret);
   return ret;
 };
 
@@ -35,7 +32,6 @@ const buildWorkerLoaderContext = (context: loader.LoaderContext, log: ReturnType
  */
 async function webpackLoaderWorker(this: loader.LoaderContext) {
   const loaderId = nanoid(6);
-  setupTransferHandler();
 
   const { maxWorkers, logLevel } = loaderUtils.getOptions(this) ?? {};
   enableLoggerGlobal(logLevel);
@@ -48,6 +44,7 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   }
 
   const pool = createPool(maxWorkers);
+
   // acquire async completion callback from webpack, let webpack know
   // this is async loader
   const loaderAsyncCompletionCallback = this.async()!;
@@ -58,7 +55,6 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
   try {
     log.info('Queue loader task into threadpool');
     const taskResult = await pool.runTask(taskContext);
-
     log.info('Queued task completed');
 
     if (!taskResult) {
@@ -81,7 +77,7 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
       loaderAsyncCompletionCallback(null, undefined);
     }
   } catch (err) {
-    log.info('Unexpected error occurred %O', err);
+    log.info('Unexpected error occurred', err);
     loaderAsyncCompletionCallback(err);
   }
 }

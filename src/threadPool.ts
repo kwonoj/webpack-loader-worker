@@ -1,7 +1,7 @@
 import * as os from 'os';
 
-import { Subject, from, of, zip } from 'rxjs';
-import { catchError, map, mapTo, mergeMap, mergeMapTo, retry, tap, timeout } from 'rxjs/operators';
+import { Subject, asapScheduler, zip } from 'rxjs';
+import { filter, map, mergeMap, observeOn, takeUntil } from 'rxjs/operators';
 import { getLogLevel, getLogger } from './utils/logger';
 
 import { RunLoaderResult } from 'loader-runner';
@@ -9,22 +9,12 @@ import { WorkerTaskData } from './adapters/WorkerTaskData';
 import { WorkerTaskLoaderContext } from './utils/WorkerTaskLoaderContext';
 import { createWorker } from './adapters/createWorker';
 import { proxy } from 'comlink';
+import { setupTransferHandler } from './utils/messagePortTransferHandler';
 
 const memoize = require('lodash.memoize');
 
 const nanoid: typeof import('nanoid') = require('nanoid');
 const DEFAULT_WORKER_COUNT = os.cpus().length || 1;
-
-const constructResultContext = (
-  task: WorkerTaskData,
-  { result, err }: Partial<{ result: RunLoaderResult; err: unknown }>
-) => ({
-  onComplete: task.onComplete,
-  onError: task.onError,
-  result,
-  err,
-  id: task.id
-});
 
 /**
  * Create comlink proxy-wrapped transferrable object from given
@@ -59,132 +49,208 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
  */
 const createPool: (
   maxWorkers?: number
-) => { dispose: () => void; runTask: (context: WorkerTaskLoaderContext) => Promise<RunLoaderResult> } = memoize(
-  (maxWorkers?: number) => {
-    const poolId = nanoid(6);
-    const workerCount = maxWorkers ?? DEFAULT_WORKER_COUNT;
-    const log = getLogger(`[${poolId}] threadPool`);
-    log.info('createPool: creating worker threads pool with %s maxWorkers', workerCount);
+) => {
+  dispose: () => Promise<void>;
+  runTask: (context: WorkerTaskLoaderContext) => Promise<RunLoaderResult>;
+} = memoize((maxWorkers?: number) => {
+  setupTransferHandler();
+  const poolId = nanoid(6);
+  const workerCount = maxWorkers ?? DEFAULT_WORKER_COUNT;
+  const log = getLogger(`[${poolId}] threadPool`);
+  log.info('createPool: creating worker threads pool with %s maxWorkers', workerCount);
 
-    let taskId = 1;
-    const taskQueue = new Subject<WorkerTaskData>();
-    const workerQueue = new Subject<ReturnType<typeof createWorker>>();
+  let taskId = 1;
+  let taskCount = 0;
+  let timeoutId: NodeJS.Timer | null = null;
 
-    //container to hold reference to worker instances
-    const workerSet: Set<ReturnType<typeof createWorker>> = new Set();
-    /**
-     * Pickup available worker thread, queue for next task
-     */
-    const invalidateWorkerQueue = async () => {
-      //check existing worker set
-      for (const worker of workerSet) {
-        const { workerProxy, workerId } = worker;
+  const taskQueue = new Subject<WorkerTaskData>();
+  const disposeAwaiter = new Subject();
+  const workerQueue = new Subject<ReturnType<typeof createWorker>>();
 
-        const available = await workerProxy.isAvailable();
-        if (available) {
-          log.info('invalidateWorkerQueue: Worker instance [%s] is available for next task', workerId);
-          workerQueue.next(worker);
-          return;
-        }
-      }
+  //container to hold reference to prepopulated worker instances
+  const workerPool = [...new Array(workerCount)].map(() => createWorker(poolId));
 
-      //if there's no available worker but does not reach max worker size, create new ones
-      if (workerSet.size < workerCount) {
-        const worker = createWorker(poolId);
-        workerSet.add(worker);
-        log.info('invalidateWorkerQueue: Created new worker instance [%s], queue for next task', worker.workerId);
-        workerQueue.next(worker);
-        return;
-      }
-    };
-
-    const closeWorkers = async () => {
-      log.info('No task arrived within 2 seconds of timeout, closing existing threads');
-      for (const worker of workerSet) {
-        workerSet.delete(worker);
+  /**
+   * Ask thread to exit once queued task completes.
+   */
+  const closeWorkers = async () => {
+    let worker = workerPool.shift();
+    while (worker) {
+      if (!worker.disposed) {
+        log.info(`Closing existing thread ${worker.workerId}`);
         await worker.close();
       }
-    };
+      worker = workerPool.shift();
+    }
+  };
 
-    // setting up timeout to close threads gracefully, otherwise main process will wait indefinitely
-    const timeoutSubscription = taskQueue
-      .pipe(
-        timeout(2000),
-        // once timeout occured, tell all existing worker to exit then bubble up error
-        // to retry timeout in case new worker created by task arrives later than 2sec
-        catchError((e) => from(closeWorkers()).pipe(mergeMapTo(() => e))),
-        retry()
-      )
-      .subscribe(() => {
-        /* noop */
-      });
+  /**
+   * Try to exit existing workers when there's no task scheduled within timeout (2sec)
+   * If there is any running task when timeout reaches extend timeout to next timeout tick.
+   */
+  const scheduleTimeout = () => {
+    if (timeoutId) {
+      log.verbose('ScheduleTimeout: Clearing existing timeout');
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
 
-    // actual pool subscription. When task / worker both emits trigger task on worker the notify its results
-    // via Promise.resolve / reject as completion callback.
-    const poolSubscription = zip(
-      taskQueue.pipe(
-        tap((task) => {
-          log.info('taskQueue: new task queued [%s]', task.id);
-        })
-      ),
-      workerQueue
-    )
-      .pipe(
-        mergeMap(([task, worker]) => {
-          const { workerProxy } = worker;
-          const { context, proxyContext, id } = task;
-          log.info('Running task [%s] via [%s]', task.id, worker.workerId);
+    timeoutId = setTimeout(async () => {
+      if (taskCount === 0) {
+        log.info('ScheduleTimeout: trying to close workers');
+        await closeWorkers();
+      } else {
+        log.verbose('ScheduleTimeout: there are running task, rescheduleing');
+        scheduleTimeout();
+      }
+    }, 2000);
+  };
 
-          // note passing proxycontext as separate, top level param is intended.
-          // proxyContext is proxy(object) to let comlink do not close object - nesting this into other
-          // object will makes comlink try to clone.
-          return from(workerProxy.run({ id, logLevel: getLogLevel() }, context, proxyContext)).pipe(
-            map((result: any) => constructResultContext(task, { result })),
-            catchError((err: unknown) => of(constructResultContext(task, { err })))
-          );
-        }, workerCount),
-        //Once worker returns results, trigger invalidation to put another worker into queue for next task
-        mergeMap((resultContext: ReturnType<typeof constructResultContext>) =>
-          from(invalidateWorkerQueue()).pipe(mapTo(resultContext))
-        )
-      )
-      .subscribe((resultContext) => {
-        const { onComplete, onError, err, result, id } = resultContext;
-        log.info('task [%s] completed', id);
-        if (err) {
-          onError(err);
-        } else {
-          onComplete(result);
+  /**
+   * Run task via worker, raises timeoutError if worker does not respond in timeout period (10sec).
+   * Most cases this happens when task is scheduled into disposed worker which released complink proxy already.
+   */
+  const tryRunTaskWithTimeout = (
+    worker: ReturnType<typeof createWorker>,
+    id: number,
+    context: any,
+    proxyContext: object
+  ) => {
+    let runTaskTimeoutId: NodeJS.Timer | null = null;
+
+    return new Promise((resolve, reject) => {
+      runTaskTimeoutId = setTimeout(() => {
+        log.info(`Task didn't respond in 10sec from worker [${id}]`);
+        reject({ timeout: true });
+      }, 10000);
+
+      worker.workerProxy.run({ id, logLevel: getLogLevel() }, context, proxyContext).then(
+        (result) => {
+          if (runTaskTimeoutId) {
+            clearTimeout(runTaskTimeoutId);
+            runTaskTimeoutId = null;
+          }
+          resolve(result);
+        },
+        (err) => {
+          if (runTaskTimeoutId) {
+            clearTimeout(runTaskTimeoutId);
+            runTaskTimeoutId = null;
+          }
+          reject(err);
         }
-      });
+      );
+    });
+  };
 
-    //kick off initial worker queue
-    invalidateWorkerQueue();
+  /**
+   * Actual task scheduler.
+   */
+  zip(
+    // Each time new task is scheduled, reset timeout for close worker.
+    // If this task is scheduled after timeout, it will reinstall worker threads.
+    taskQueue.pipe(
+      map((v, i) => {
+        log.verbose(`Task schduled count [${i}]`);
+        scheduleTimeout();
 
-    return {
-      /** Manually close threadpool. */
-      dispose: () => {
-        timeoutSubscription.unsubscribe();
-        poolSubscription.unsubscribe();
+        if (workerPool.length < workerCount) {
+          log.info('worker has disposed, reinstall workers');
+          for (let idx = workerPool.length; idx < workerCount; idx++) {
+            const worker = createWorker(poolId);
+            workerPool.push(worker);
+            workerQueue.next(worker);
+          }
+        }
+        return v;
+      })
+    ),
+    workerQueue.pipe(
+      filter((x) => !x.disposed),
+      map((v, i) => {
+        log.verbose(`Worker schduled count [${i}]`);
+        return v;
+      })
+    )
+  )
+    .pipe(
+      observeOn(asapScheduler),
+      takeUntil(disposeAwaiter),
+      mergeMap(async ([task, worker]) => {
+        if (!worker || worker.disposed) {
+          log.info(`Worker is not available, rescheduling task [${task.id}] to next queue`);
+          taskQueue.next(task);
+        }
+        const { context, proxyContext, id } = task;
+        log.info('Running task [%s] via [%s]', task.id, worker.workerId);
+
+        try {
+          const result = await tryRunTaskWithTimeout(worker, id, context, proxyContext);
+          task.onComplete(result as any);
+          return { id, value: true };
+        } catch (err) {
+          if (!!err && err.timeout) {
+            log.info(`Reschedule task [${id}] due to timeout`);
+            taskQueue.next(task);
+          } else {
+            log.info('Unexpected error occurred', err);
+            task.onError(err);
+          }
+
+          return { id, value: false };
+        }
+      })
+    )
+    .subscribe(
+      (x) => {
+        log.info(`Task [${x.id}] completed ${x.value ? 'successfully' : 'failed'}`);
+        taskCount--;
+
+        // Each time task completes, queue new worker to let zip operator picks up task / worker pair
+        const worker = workerPool[(x.id + 1) % workerCount];
+        workerQueue.next(worker);
       },
-      /**
-       * Queue new task into thread pool and returns result asynchronously.
-       */
-      runTask: (context: WorkerTaskLoaderContext): Promise<RunLoaderResult> =>
-        new Promise((resolve, reject) => {
-          const [normalContext, proxyContext] = marshallWorkerDataContext(context);
+      (err) => {
+        log.info('Unexpected error occurred', err);
+      },
+      () => {
+        log.info('Completing task pool');
+        closeWorkers();
+      }
+    );
 
-          taskQueue.next({
-            id: taskId++,
-            context: normalContext,
-            //Wrap whole object into proxy again, otherwise worker will try clone
-            proxyContext: proxy(proxyContext),
-            onComplete: resolve,
-            onError: reject
-          });
-        })
-    };
-  }
-);
+  // Queue all workers when starting scheduler
+  workerPool.forEach((w) => workerQueue.next(w));
+
+  return {
+    /** Manually close threadpool. */
+    dispose: () => {
+      disposeAwaiter.next(true);
+    },
+    /**
+     * Queue new task into thread pool and returns result asynchronously.
+     */
+    runTask: (context: WorkerTaskLoaderContext): Promise<RunLoaderResult> => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
+      ++taskCount;
+      return new Promise((resolve, reject) => {
+        const [normalContext, proxyContext] = marshallWorkerDataContext(context);
+
+        taskQueue.next({
+          id: taskId++,
+          context: normalContext,
+          //Wrap whole object into proxy again, otherwise worker will try clone
+          proxyContext: proxy(proxyContext),
+          onComplete: resolve,
+          onError: reject
+        });
+      });
+    }
+  };
+});
 
 export { createPool, WorkerTaskLoaderContext };

@@ -16,7 +16,7 @@ const createWorker = (loaderId: string) => {
 
   log.info('Creating new worker instance');
 
-  const worker = new Worker(path.resolve(__dirname, './workerEntryPoint.js'));
+  const worker = new Worker(path.resolve(__dirname, './workerEntryPoint.js'), { workerData: { loaderId, workerId } });
   const workerProxy = wrap<WorkerTaskRunner>(nodeEndpoint(worker));
   worker.unref();
 
@@ -28,15 +28,14 @@ const createWorker = (loaderId: string) => {
     loaderId,
     workerId,
     close: () => {
+      disposed = true;
       return new Promise((resolve) => {
         worker.once('exit', () => {
-          disposed = true;
-          log.info('Worker instance disposed');
+          log.info(`[${loaderId}:${workerId}] Worker instance disposed`);
           workerProxy[releaseProxy]();
           resolve();
         });
 
-        //[todo]: gracefully close by waiting running task
         workerProxy.close();
       });
     }
