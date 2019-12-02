@@ -121,6 +121,9 @@ const createPool: (
     return new Promise((resolve, reject) => {
       runTaskTimeoutId = setTimeout(() => {
         log.info(`Task didn't respond in 10sec from worker [${id}]`);
+        if (worker.disposed) {
+          workerPool.splice(workerPool.indexOf(worker), 1);
+        }
         reject({ timeout: true });
       }, 10000);
 
