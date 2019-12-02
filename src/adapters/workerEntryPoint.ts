@@ -23,9 +23,6 @@ const buildLoaderOption = (
   context: Partial<WorkerTaskLoaderContext> & { proxyFnKeys: Array<string> },
   proxyContext: object
 ): loaderRunner.RunLoaderOption => {
-  // each task is isolated, so we'll clear & release any existing proxies
-  setupTransferHandler();
-
   // context is plain object cloned from main process
   const options = {
     ...context,
@@ -137,6 +134,7 @@ const taskRunner = (() => {
   };
 })();
 
+setupTransferHandler();
 expose(taskRunner, nodeEndpoint(parentPort));
 
 export { taskRunner };
