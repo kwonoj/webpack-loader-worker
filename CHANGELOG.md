@@ -1,3 +1,18 @@
+<a name="0.0.5"></a>
+## [0.0.5](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.4...v0.0.5) (2019-12-02)
+
+
+### Bug Fixes
+
+* **package:** remove redundant deps ([1c172a5](https://github.com/kwonoj/webpack-loader-worker/commit/1c172a5))
+
+
+### Features
+
+* **runtask:** remove worker if timed out ([e14730b](https://github.com/kwonoj/webpack-loader-worker/commit/e14730b))
+
+
+
 <a name="0.0.4"></a>
 ## [0.0.4](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.3...v0.0.4) (2019-12-02)
 
