@@ -41,7 +41,7 @@ describe('threadPool', () => {
     pool.dispose();
   });
 
-  fit('should able to run task', async () => {
+  it('should able to run task', async () => {
     const task: any = {
       value: nanoid()
     };
