@@ -1,3 +1,21 @@
+<a name="0.0.4"></a>
+## [0.0.4](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.3...v0.0.4) (2019-12-02)
+
+
+### Bug Fixes
+
+* **loaderworker:** handle completion to exit threads ([63f7adc](https://github.com/kwonoj/webpack-loader-worker/commit/63f7adc))
+* **threadpool:** correct thread exit management ([ac115ba](https://github.com/kwonoj/webpack-loader-worker/commit/ac115ba))
+* **transferhandler:** avoid aggressive releaseproxy ([0134342](https://github.com/kwonoj/webpack-loader-worker/commit/0134342))
+* **transferhandler:** release proxy where possible ([50af906](https://github.com/kwonoj/webpack-loader-worker/commit/50af906))
+
+
+### Features
+
+* **workerentrypoint:** wait existing task before exit thread ([1465bb6](https://github.com/kwonoj/webpack-loader-worker/commit/1465bb6))
+
+
+
 <a name="0.0.3"></a>
 ## [0.0.3](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.2...v0.0.3) (2019-12-01)
 
