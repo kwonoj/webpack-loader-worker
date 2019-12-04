@@ -2,36 +2,19 @@ import * as loaderUtils from 'loader-utils';
 
 import { enableLoggerGlobal, getLogger } from './utils/logger';
 
-import { createPool } from './threadPool';
+import { createThreadPool } from './threadPoolRedux';
 import { isWorkerEnabled } from './utils/isWorkerEnabled';
 import { loader } from 'webpack';
 
-const nanoid: typeof import('nanoid') = require('nanoid');
+const once = require('lodash.once');
 
-const buildWorkerLoaderContext = (context: loader.LoaderContext, _log: ReturnType<typeof getLogger>) => {
-  // Create object inherit current context except
-  // few values we won't forward / or need augmentation.
-  //
-  // `fs` will be injected in worker thread using node.js fs.
-  // [todo]: other objects are omitted until know if it's required, as want to avoid marshalling
-  // nested object if possible.
-  const { fs, callback, async, _module, _compilation, _compiler, ...ret } = context;
-
-  //augment few properties
-  ret['loaders'] = context.loaders.slice(context.loaderIndex + 1).map((l) => ({
-    loader: l.path,
-    options: l.options,
-    ident: l.ident
-  }));
-  ret.resource = context.resourcePath + (context.resourceQuery || '');
-  return ret;
-};
+let loaderIdCount = 0;
 
 /**
  * Entrypoint to loader function, initializes threadpool & schedule each loader tasks.
  */
 async function webpackLoaderWorker(this: loader.LoaderContext) {
-  const loaderId = nanoid(6);
+  const loaderId = loaderIdCount++;
 
   const { maxWorkers, logLevel } = loaderUtils.getOptions(this) ?? {};
   enableLoggerGlobal(logLevel);
@@ -43,18 +26,18 @@ async function webpackLoaderWorker(this: loader.LoaderContext) {
     throw new Error('Cannot initialize loader, ensure worker_threads is enabled');
   }
 
-  const pool = createPool(maxWorkers);
+  const pool = createThreadPool({ maxWorkers });
 
   // acquire async completion callback from webpack, let webpack know
   // this is async loader
-  const loaderAsyncCompletionCallback = this.async()!;
+  const loaderAsyncCompletionCallback = once(this.async()!);
   log.info('LoaderWorker ready, preparing context to run loader task');
 
-  const taskContext = buildWorkerLoaderContext(this, log);
+  //const taskContext = buildWorkerLoaderContext(this, log);
 
   try {
     log.info('Queue loader task into threadpool');
-    const taskResult = await pool.runTask(taskContext);
+    const taskResult = await pool.runLoaderTask(this);
     log.info('Queued task completed');
 
     if (!taskResult) {
