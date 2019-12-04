@@ -33,7 +33,7 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
   Object.entries(context).reduce(
     (acc, [key, value]) => {
       if (typeof value === 'function') {
-        acc[1][key] = proxy(value);
+        acc[1][key] = value;
         acc[0].proxyFnKeys?.push(key);
       } else {
         acc[0][key] = value;
@@ -41,7 +41,12 @@ const marshallWorkerDataContext = <T = object>(context: T) =>
 
       return acc;
     },
-    [{ proxyFnKeys: [] }, {}] as [{ proxyFnKeys: Array<string> }, object]
+
+    // marking proxyContext object with proxyMarker, this'll make comlink avoids structured clone
+
+    // note keys to proxied properties are attaches into `context` to be cloned - worker threads
+    // can access keys synchronously to reconstruct loaderContext
+    [{ proxyFnKeys: [] }, proxy({})] as [{ proxyFnKeys: Array<string> }, object]
   );
 
 /**
@@ -246,8 +251,7 @@ const createPool: (
         taskQueue.next({
           id: taskId++,
           context: normalContext,
-          //Wrap whole object into proxy again, otherwise worker will try clone
-          proxyContext: proxy(proxyContext),
+          proxyContext: proxyContext,
           onComplete: resolve,
           onError: reject
         });
