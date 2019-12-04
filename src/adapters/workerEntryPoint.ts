@@ -4,7 +4,7 @@ import * as loaderRunner from 'loader-runner';
 import { Subject, from, of } from 'rxjs';
 import { catchError, map, mergeMap } from 'rxjs/operators';
 import { enableLoggerGlobal, getLogger } from '../utils/logger';
-import { expose, proxy } from 'comlink';
+import { expose, proxy, transfer } from 'comlink';
 import { parentPort, workerData } from 'worker_threads';
 
 import { WorkerTaskData } from './WorkerTaskData';
@@ -53,6 +53,17 @@ const buildLoaderOption = (
 
 type TaskQueueContext = Omit<WorkerTaskData, 'id'> & { task: { id: number; logLevel: 'verbose' | 'info' } };
 
+// [todo]: support nested objects
+const collectBuffer = (result: loaderRunner.RunLoaderResult) => {
+  const ret = Object.values(result).reduce((acc, value) => {
+    if (ArrayBuffer.isView(value)) {
+      acc.push(value.buffer);
+    }
+    return acc;
+  }, []);
+  return ret;
+};
+
 /**
  * Interface to allow running specified task in worker threads,
  * exposed via comlink proxy.
@@ -98,7 +109,12 @@ const taskRunner = (() => {
         if (err) {
           onError(err);
         } else {
-          onComplete(result);
+          const buffer = collectBuffer(result);
+          if (buffer.length > 0) {
+            onComplete(transfer(result, buffer));
+          } else {
+            onComplete(result);
+          }
         }
       },
       (e) => {
