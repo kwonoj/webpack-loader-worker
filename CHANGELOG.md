@@ -1,3 +1,13 @@
+<a name="0.0.7"></a>
+## [0.0.7](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.6...v0.0.7) (2019-12-04)
+
+
+### Features
+
+* **threadpool:** remove proxymarker to inner proxycontext properties ([81885ff](https://github.com/kwonoj/webpack-loader-worker/commit/81885ff))
+
+
+
 <a name="0.0.6"></a>
 ## [0.0.6](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.5...v0.0.6) (2019-12-04)
 
