@@ -1,3 +1,13 @@
+<a name="0.0.6"></a>
+## [0.0.6](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.5...v0.0.6) (2019-12-04)
+
+
+### Features
+
+* **taskrunner:** transfer arraybuffer in runloaderresult ([29c5042](https://github.com/kwonoj/webpack-loader-worker/commit/29c5042))
+
+
+
 <a name="0.0.5"></a>
 ## [0.0.5](https://github.com/kwonoj/webpack-loader-worker/compare/v0.0.4...v0.0.5) (2019-12-02)
 
